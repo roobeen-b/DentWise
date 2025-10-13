@@ -80,13 +80,13 @@ export async function updateDoctor(doctorData: UpdateDoctorData) {
       throw new Error("Doctor not found");
     }
 
-    if (doctorData.email !== currentDoctor.email) {
+    if (doctorData.email && doctorData.email !== currentDoctor.email) {
       const doctorWithSameEmail = await prisma.doctor.findUnique({
         where: {
           email: doctorData.email,
         },
       });
-      if (doctorWithSameEmail) {
+      if (doctorWithSameEmail && doctorWithSameEmail.id !== doctorData.id ) {
         throw new Error("A doctor with this email already exists");
       }
     }
