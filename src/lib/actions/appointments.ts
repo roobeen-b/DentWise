@@ -111,3 +111,81 @@ export async function getUserAppointmentStats() {
     throw new Error("Failed to fetch user appointments");
   }
 }
+
+export async function getBookedTimeSlots(doctorId: string, date: string) {
+  try {
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        doctorId,
+        date: new Date(date),
+        status: {
+          in: ["COMPLETED", "CONFIRMED"],
+        },
+      },
+      select: {
+        time: true,
+      },
+    });
+
+    return appointments.map((appointment) => appointment.time);
+  } catch (error) {
+    console.error("Error fetching booked time slots:", error);
+    return [];
+  }
+}
+
+interface BookAppointmentInput {
+  doctorId: string;
+  date: string;
+  time: string;
+  reason?: string;
+}
+
+export async function bookAppointment(input: BookAppointmentInput) {
+  try {
+    const { userId } = await auth();
+    if (!userId)
+      throw new Error("You must be logged in to book an appointment");
+
+    if (!input.doctorId || !input.date || !input.time) {
+      throw new Error("Invalid appointment details");
+    }
+
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    if (!user)
+      throw new Error(
+        "User not found. Please ensure your account is properly set up."
+      );
+
+    const appointment = await prisma.appointment.create({
+      data: {
+        doctorId: input.doctorId,
+        date: new Date(input.date),
+        time: input.time,
+        reason: input.reason || "General Consultation",
+        status: "CONFIRMED",
+        userId: user.id,
+      },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        doctor: {
+          select: {
+            name: true,
+            imageUrl: true,
+          },
+        },
+      },
+    });
+
+    return transformAppointment(appointment);
+  } catch (error) {
+    console.log("Error booking appointment:", error);
+    throw new Error("Failed to book appointment");
+  }
+}

@@ -86,7 +86,7 @@ export async function updateDoctor(doctorData: UpdateDoctorData) {
           email: doctorData.email,
         },
       });
-      if (doctorWithSameEmail && doctorWithSameEmail.id !== doctorData.id ) {
+      if (doctorWithSameEmail && doctorWithSameEmail.id !== doctorData.id) {
         throw new Error("A doctor with this email already exists");
       }
     }
@@ -109,5 +109,28 @@ export async function updateDoctor(doctorData: UpdateDoctorData) {
   } catch (error: any) {
     console.log("Error updating doctor:", error);
     throw new Error("Failed to update doctor");
+  }
+}
+
+export async function getAvailableDoctors() {
+  try {
+    const doctors = await prisma.doctor.findMany({
+      where: {
+        isActive: true,
+      },
+      include: {
+        _count: { select: { appointments: true } },
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+    return doctors.map((doctor) => ({
+      ...doctor,
+      appointmentsCount: doctor._count.appointments,
+    }));
+  } catch (error) {
+    console.log("Error fetching available doctors:", error);
+    throw new Error("Failed to fetch available doctors");
   }
 }
