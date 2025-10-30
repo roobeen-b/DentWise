@@ -1,6 +1,7 @@
 import { resend } from "@/lib/resend";
 import { NextResponse } from "next/server";
 import AppointmentConfirmationEmail from "@/components/emails/AppointmentConfirmationEmail";
+import { render } from "@react-email/render";
 
 export async function POST(request: Request) {
   try {
@@ -22,18 +23,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data, error } = await resend.emails.send({
-      from: "DentWise <rubinbaidhya@rubinbaidhya.com.np>",
-      to: [userEmail],
-      subject: "Appointment Confirmation 🦷 - DentWise",
-      react: AppointmentConfirmationEmail({
+    const html = await render(
+      AppointmentConfirmationEmail({
         doctorName,
         appointmentDate,
         appointmentTime,
         appointmentType,
         duration,
         price,
-      }),
+      })
+    );
+
+    const { data, error } = await resend.emails.send({
+      from: "DentWise <rubinbaidhya@rubinbaidhya.com.np>",
+      to: [userEmail],
+      subject: "Appointment Confirmation 🦷 - DentWise",
+      html,
     });
 
     if (error) {
@@ -44,8 +49,15 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ data }, { status: 200 });
+    return NextResponse.json(
+      { message: "Email sent successfully", emailId: data?.id },
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ error }, { status: 500 });
+    console.error("Email sending error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
