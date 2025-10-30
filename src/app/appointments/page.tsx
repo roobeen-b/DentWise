@@ -1,18 +1,21 @@
 "use client";
 
+import { toast } from "sonner";
 import { useState } from "react";
-import Navbar from "@/components/Navbar";
-import ProgressSteps from "@/components/appointments/ProgressSteps";
-import DoctorSelectionStep from "@/components/appointments/DoctorSelectionStep";
-import TimeSelectionStep from "@/components/appointments/TimeSelectionStep";
-import BookingConfirmationStep from "@/components/appointments/BookingConfirmationStep";
+import { format } from "date-fns";
+
 import {
   useBookAppointment,
   useUserAppointments,
 } from "@/hooks/use-appointments";
-import { toast } from "sonner";
 import { APPOINTMENT_TYPES } from "@/lib/utils";
-import { format } from "date-fns";
+
+import Navbar from "@/components/Navbar";
+import ProgressSteps from "@/components/appointments/ProgressSteps";
+import TimeSelectionStep from "@/components/appointments/TimeSelectionStep";
+import DoctorSelectionStep from "@/components/appointments/DoctorSelectionStep";
+import BookingConfirmationStep from "@/components/appointments/BookingConfirmationStep";
+import { AppointmentConfirmationModal } from "@/components/appointments/AppointmentConfirmationModal";
 
 function AppointmentsPage() {
   const [selectedDentistId, setSelectedDentistId] = useState<string | null>(
@@ -55,6 +58,33 @@ function AppointmentsPage() {
       {
         onSuccess: async (data) => {
           setBookedAppointment(data);
+
+          try {
+            const response = await fetch(`/api/send-appointment-email`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                doctorName: data.doctorName,
+                appointmentDate: format(
+                  new Date(data.date),
+                  "EEEE, MMMM d, yyyy"
+                ),
+                appointmentTime: data.time,
+                appointmentType: appointmentType?.name,
+                duration: appointmentType?.duration,
+                price: appointmentType?.price,
+                userEmail: data.patientEmail,
+              }),
+            });
+            if (!response.ok) {
+              console.error("Failed to send confirmation email");
+            }
+          } catch (error) {
+            console.error("Failed to send confirmation email:", error);
+          }
+
           setShowConfirmationModal(true);
 
           setCurrentStep(1);
@@ -116,6 +146,22 @@ function AppointmentsPage() {
           />
         )}
       </div>
+
+      {bookedAppointment && (
+        <AppointmentConfirmationModal
+          open={showConfirmationModal}
+          onOpenChange={setShowConfirmationModal}
+          appointmentDetails={{
+            doctorName: bookedAppointment.doctorName,
+            appointmentDate: format(
+              new Date(bookedAppointment.date),
+              "EEEE, MMMM d, yyyy"
+            ),
+            appointmentTime: bookedAppointment.time,
+            userEmail: bookedAppointment.patientEmail,
+          }}
+        />
+      )}
 
       {userAppointments.length > 0 && (
         <div className="mb-8 max-w-7xl mx-auto px-6 py-8">
